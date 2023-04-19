@@ -1,0 +1,8 @@
+<players root="gfx/characters/" portraitroot="gfx/ui/stage/" nameimageroot="gfx/ui/boss/" bigportraitroot="gfx/ui/stage/">
+    <player name="Isidoro" skin="character_isidoro.png" hp="2"
+          nameimage="playername_isidoro.png"
+          portrait="null.png"
+          extraportrait="isidoro_portrait.anm2" skinColor="-1"
+		  birthright="Lap 2 escape" keys="1"
+          armor="2" canShoot="true" />
+</players>
