@@ -1,8 +1,8 @@
 <AnimatedActor>
-	<Info CreatedBy="robot" CreatedOn="7/4/2023 05:42:29" Version="205" Fps="30"/>
+	<Info CreatedBy="robot" CreatedOn="4/19/2023 9:13:35 PM" Version="209" Fps="30"/>
 	<Content>
 		<Spritesheets>
-			<Spritesheet Path="characters\costumes\character_001_isaac.png" Id="0"/>
+			<Spritesheet Path="costumes\character_isidoro.png" Id="0"/>
 			<Spritesheet Path="Characters/costumes/ghost.png" Id="1"/>
 		</Spritesheets>
 		<Layers>
