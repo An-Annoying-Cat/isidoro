@@ -1,8 +1,8 @@
 <AnimatedActor>
-	<Info CreatedBy="robot" CreatedOn="1/5/2023 06:03:19" Version="218" Fps="30"/>
+	<Info CreatedBy="robot" CreatedOn="2/5/2023 03:05:51" Version="219" Fps="30"/>
 	<Content>
 		<Spritesheets>
-			<Spritesheet Path="transformation_bomb.png" Id="0"/>
+			<Spritesheet Path="costumes\transformation_bomb.png" Id="0"/>
 		</Spritesheets>
 		<Layers>
 			<Layer Name="glow" Id="0" SpritesheetId="0"/>
