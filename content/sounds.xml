@@ -1,0 +1,8 @@
+<sounds root="sfx/">
+	<sound name="Isidoro Taunt">
+		<sample weight="1" path="isidoro_taunt.wav"/>
+	</sound>
+	<sound name="Isidoro Parry">
+		<sample weight="1" path="isidoro_parry.wav"/>
+	</sound>
+</sounds>
