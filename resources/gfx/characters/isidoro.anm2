@@ -1,5 +1,5 @@
 <AnimatedActor>
-	<Info CreatedBy="robot" CreatedOn="10/14/2023 1:11:52 AM" Version="230" Fps="30"/>
+	<Info CreatedBy="robot" CreatedOn="10/14/2023 11:06:44 PM" Version="233" Fps="30"/>
 	<Content>
 		<Spritesheets>
 			<Spritesheet Path="costumes\character_isidoro.png" Id="0"/>
@@ -37,6 +37,7 @@
 			<Event Name="Poof" Id="1"/>
 			<Event Name="DeathSound" Id="2"/>
 			<Event Name="Hit" Id="3"/>
+			<Event Name="Interruptable" Id="4"/>
 		</Events>
 	</Content>
 	<Animations DefaultAnimation="IdleNormal">
@@ -500,7 +501,9 @@
 				<NullAnimation NullId="6" Visible="true"/>
 				<NullAnimation NullId="7" Visible="true"/>
 			</NullAnimations>
-			<Triggers/>
+			<Triggers>
+				<Trigger EventId="4" AtFrame="0"/>
+			</Triggers>
 		</Animation>
 		<Animation Name="WalkUp" FrameNum="12" Loop="true">
 			<RootAnimation>
@@ -546,7 +549,9 @@
 				<NullAnimation NullId="6" Visible="true"/>
 				<NullAnimation NullId="7" Visible="true"/>
 			</NullAnimations>
-			<Triggers/>
+			<Triggers>
+				<Trigger EventId="4" AtFrame="0"/>
+			</Triggers>
 		</Animation>
 		<Animation Name="WalkRight" FrameNum="12" Loop="true">
 			<RootAnimation>
@@ -592,7 +597,9 @@
 				<NullAnimation NullId="6" Visible="true"/>
 				<NullAnimation NullId="7" Visible="true"/>
 			</NullAnimations>
-			<Triggers/>
+			<Triggers>
+				<Trigger EventId="4" AtFrame="0"/>
+			</Triggers>
 		</Animation>
 		<Animation Name="WalkDown" FrameNum="12" Loop="true">
 			<RootAnimation>
@@ -638,7 +645,9 @@
 				<NullAnimation NullId="6" Visible="true"/>
 				<NullAnimation NullId="7" Visible="true"/>
 			</NullAnimations>
-			<Triggers/>
+			<Triggers>
+				<Trigger EventId="4" AtFrame="0"/>
+			</Triggers>
 		</Animation>
 		<Animation Name="HeadLeft" FrameNum="4" Loop="false">
 			<RootAnimation>
@@ -2005,7 +2014,9 @@
 				<NullAnimation NullId="6" Visible="true"/>
 				<NullAnimation NullId="7" Visible="true"/>
 			</NullAnimations>
-			<Triggers/>
+			<Triggers>
+				<Trigger EventId="4" AtFrame="0"/>
+			</Triggers>
 		</Animation>
 		<Animation Name="ShootDown" FrameNum="8" Loop="true">
 			<RootAnimation>
@@ -2795,7 +2806,9 @@
 				<NullAnimation NullId="6" Visible="true"/>
 				<NullAnimation NullId="7" Visible="true"/>
 			</NullAnimations>
-			<Triggers/>
+			<Triggers>
+				<Trigger EventId="4" AtFrame="16"/>
+			</Triggers>
 		</Animation>
 		<Animation Name="BossPunchDown" FrameNum="12" Loop="true">
 			<RootAnimation>
@@ -3046,7 +3059,9 @@
 				<NullAnimation NullId="6" Visible="true"/>
 				<NullAnimation NullId="7" Visible="true"/>
 			</NullAnimations>
-			<Triggers/>
+			<Triggers>
+				<Trigger EventId="0" AtFrame="0"/>
+			</Triggers>
 		</Animation>
 		<Animation Name="Taunt" FrameNum="16" Loop="true">
 			<RootAnimation>
@@ -3178,7 +3193,9 @@
 				<NullAnimation NullId="6" Visible="true"/>
 				<NullAnimation NullId="7" Visible="true"/>
 			</NullAnimations>
-			<Triggers/>
+			<Triggers>
+				<Trigger EventId="4" AtFrame="10"/>
+			</Triggers>
 		</Animation>
 		<Animation Name="DashLeapRight" FrameNum="3" Loop="true">
 			<RootAnimation>
