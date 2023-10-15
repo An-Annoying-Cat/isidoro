@@ -1,5 +1,5 @@
 <AnimatedActor>
-	<Info CreatedBy="robot" CreatedOn="10/14/2023 11:06:44 PM" Version="233" Fps="30"/>
+	<Info CreatedBy="robot" CreatedOn="10/15/2023 4:56:13 PM" Version="235" Fps="30"/>
 	<Content>
 		<Spritesheets>
 			<Spritesheet Path="costumes\character_isidoro.png" Id="0"/>
@@ -2358,7 +2358,9 @@
 				<NullAnimation NullId="6" Visible="true"/>
 				<NullAnimation NullId="7" Visible="true"/>
 			</NullAnimations>
-			<Triggers/>
+			<Triggers>
+				<Trigger EventId="4" AtFrame="0"/>
+			</Triggers>
 		</Animation>
 		<Animation Name="GrabLoopLeft" FrameNum="4" Loop="true">
 			<RootAnimation>
@@ -2396,7 +2398,9 @@
 				<NullAnimation NullId="6" Visible="true"/>
 				<NullAnimation NullId="7" Visible="true"/>
 			</NullAnimations>
-			<Triggers/>
+			<Triggers>
+				<Trigger EventId="4" AtFrame="0"/>
+			</Triggers>
 		</Animation>
 		<Animation Name="GrabLoopUp" FrameNum="4" Loop="true">
 			<RootAnimation>
@@ -2434,7 +2438,9 @@
 				<NullAnimation NullId="6" Visible="true"/>
 				<NullAnimation NullId="7" Visible="true"/>
 			</NullAnimations>
-			<Triggers/>
+			<Triggers>
+				<Trigger EventId="4" AtFrame="0"/>
+			</Triggers>
 		</Animation>
 		<Animation Name="GrabLoopRight" FrameNum="4" Loop="true">
 			<RootAnimation>
@@ -2472,7 +2478,9 @@
 				<NullAnimation NullId="6" Visible="true"/>
 				<NullAnimation NullId="7" Visible="true"/>
 			</NullAnimations>
-			<Triggers/>
+			<Triggers>
+				<Trigger EventId="4" AtFrame="0"/>
+			</Triggers>
 		</Animation>
 		<Animation Name="PiledriverLeap" FrameNum="24" Loop="false">
 			<RootAnimation>

@@ -2,6 +2,7 @@ local Mod = Isidoro
 Mod.ISIDORO = {}
 local ISIDORO = Mod.ISIDORO
 local ENUMS = Mod.ENUMS
+local FUNCTIONS = Mod.FUNCTIONS
 
 local PLAYER_ISIDORO = ENUMS.PLAYERS.ISIDORO
 
@@ -18,6 +19,7 @@ function ISIDORO:GetIsidoroState(player)
 		player:GetData().isi_data = {
             Taunting = true,
 			TauntTime = 0,
+            LastPunchDirection = Vector.Zero,
 		}
 	end
 	return player:GetData().isi_data
@@ -41,6 +43,8 @@ end
 
 
 -- assign costume
+---@param player EntityPlayer
+---@function
 function ISIDORO:IsidoroInit(player)
     if player:GetPlayerType() ~= PLAYER_ISIDORO then return end
 
@@ -49,7 +53,8 @@ function ISIDORO:IsidoroInit(player)
 end
 Mod:AddCallback(ModCallbacks.MC_POST_PLAYER_INIT, ISIDORO.IsidoroInit)
 
-
+---@param player EntityPlayer
+---@function
 function ISIDORO:IsidoroUpdate(player)
     if player:GetPlayerType() ~= PLAYER_ISIDORO then return end
 
@@ -84,6 +89,8 @@ Mod:AddCallback(ModCallbacks.MC_POST_PLAYER_RENDER, ISIDORO.IsidoroUpdate, 0)
 
 -----PARRY-----
 
+---@param player EntityPlayer
+---@function
 function ISIDORO:Taunt(player)
     if player:GetPlayerType() ~= PLAYER_ISIDORO then return end
 
@@ -120,7 +127,9 @@ function ISIDORO:Taunt(player)
 end
 Mod:AddCallback(ModCallbacks.MC_POST_PLAYER_UPDATE, ISIDORO.Taunt, 0)
 
-
+---@param projectile EntityProjectile
+---@param player EntityPlayer
+---@function
 function ISIDORO:DeflectProjectile(player, projectile)
 	local playerPos = player.Position
     local projectilePos = projectile.Position
@@ -135,7 +144,9 @@ function ISIDORO:DeflectProjectile(player, projectile)
 	-- end
 end
 
-
+---@param projectile EntityProjectile
+---@param collider EntityPlayer
+---@function
 function ISIDORO:ParryProjectile(projectile, collider)
     if not collider:ToPlayer() then return end
 
@@ -156,3 +167,97 @@ function ISIDORO:ParryProjectile(projectile, collider)
     end
 end
 Mod:AddCallback(ModCallbacks.MC_PRE_PROJECTILE_COLLISION, ISIDORO.ParryProjectile)
+
+
+
+-----GRAB-----
+
+--the next 3 functions are from epiphany https://steamcommunity.com/sharedfiles/filedetails/?id=3012430463
+-- Custom implementation of GetAimDirection that doesn't reset between rooms.
+-- Also accounts for Marked.
+---@param player EntityPlayer
+---@return Vector
+---@function
+function ISIDORO:GetAimDirection(player)
+	local isMouseEnabled = Options.MouseControl
+	local isiData = ISIDORO:GetIsidoroState(player)
+	local aimVector = Vector.Zero
+
+	if isMouseEnabled and Input.IsMouseBtnPressed(0) and player.ControllerIndex == 0 then -- 0 is left button
+		local mousePos = Input.GetMousePosition(true)
+		local direction = (mousePos - player.Position):Normalized()
+
+		aimVector = direction
+	end
+
+	if not isMouseEnabled and player.ControllerIndex ~= 0 then -- they are using a controller
+		local input = player:GetShootingJoystick()
+		aimVector = input
+	end
+
+	if aimVector:Length() < 1e-3 then
+		if player:AreOpposingShootDirectionsPressed() then
+			aimVector = player:GetAimDirection()
+		else
+			aimVector = player:GetShootingJoystick()
+		end
+	end
+
+	for _, mark in ipairs(Isaac.FindByType(EntityType.ENTITY_EFFECT, EffectVariant.TARGET)) do
+		local parent = mark.SpawnerEntity and mark.SpawnerEntity:ToPlayer()
+		if parent and FUNCTIONS:GetPlayerString(parent) == FUNCTIONS:GetPlayerString(player) then
+			aimVector = (mark.Position - player.Position):Normalized()
+			break
+		end
+	end
+
+	if aimVector:Length() > 1e-3 then
+		isiData.LastPunchDirection = aimVector
+	end
+
+	return aimVector
+end
+
+-- also from epiphany https://steamcommunity.com/sharedfiles/filedetails/?id=3012430463
+---@param player EntityPlayer
+---@return Vector
+---@function
+function ISIDORO:GetAttackDirection(player)
+	local angle = ISIDORO:GetAimDirection(player):GetAngleDegrees()
+
+	if not player:HasCollectible(CollectibleType.COLLECTIBLE_ANALOG_STICK) and not player:HasCollectible(CollectibleType.COLLECTIBLE_MARKED) then
+		angle = ((angle + 45) // 90) * 90
+	end
+
+	return Vector.FromAngle(angle)
+end
+
+
+-- function from epiphany https://steamcommunity.com/sharedfiles/filedetails/?id=3012430463
+---@param player EntityPlayer
+---@param direction Vector?
+---@param cooldown number? @Specifies a cooldown for the dash, fire delay
+---@param dmg number? @Specifies the damage of the piledriver. If not specified, the player's damage will be used.
+---@function
+function ISIDORO:Grab(player, direction, cooldown, dmg)
+	local isiData = ISIDORO:GetIsidoroState(player)
+
+	-- multiply by 2 since player update runs 60 times a second while firerate works with 30 in mind
+	cooldown = cooldown or (math.ceil(player.MaxFireDelay) * 2)
+
+	local aimDirection = direction or ISIDORO:GetAttackDirection(player)
+
+
+end
+
+
+-- 		local angle = SAMSON:GetAimDirection(player):GetAngleDegrees()
+-- 		angle = ((angle + 45) // 90) * 90
+
+-- 		if angle == 0 then -- right
+-- 			pos = pos + Vector(-offset.X, offset.Y)
+-- 		elseif math.abs(angle) == 180 then -- left
+-- 			pos = pos + Vector(offset.X, offset.Y)
+-- 		else
+-- 			pos = pos + Vector(0, offset.Y)
+-- 		end
