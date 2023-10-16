@@ -7,37 +7,62 @@ local FUNCTIONS = Mod.FUNCTIONS
 local PLAYER_ISIDORO = ENUMS.PLAYERS.ISIDORO
 
 ISIDORO.PARRY_WINDOW = 10
+ISIDORO.GRAB_MINIMUM = 10
+ISIDORO.GRAB_MAXIMUM = 20
 
 local PARRY_WINDOW = ISIDORO.PARRY_WINDOW
+local GRAB_MINIMUM = ISIDORO.GRAB_MINIMUM
+local GRAB_MAXIMUM = ISIDORO.GRAB_MAXIMUM
 
-local uninterruptable_actions = {
-
-}
-
+---@param player EntityPlayer
+---@function
 function ISIDORO:GetIsidoroState(player)
     if not player:GetData().isi_data then
 		player:GetData().isi_data = {
             Taunting = true,
 			TauntTime = 0,
-            LastPunchDirection = Vector.Zero,
+            LastDashDirection = Vector.Zero,
+            DashVelocity = Vector.Zero,
+            GrabTimeRemaining = 0,
+            StoredVelocity = Vector.Zero
 		}
 	end
 	return player:GetData().isi_data
 end
 
+---@param player EntityPlayer
+---@function
 function ISIDORO:IsTaunting(player)
     local isiData = ISIDORO:GetIsidoroState(player)
     local sprite = player:GetSprite()
     return sprite:IsPlaying("TauntFX") or isiData.Taunting
 end
 
+---@param player EntityPlayer
+---@function
+function ISIDORO:IsShooting(player)
+    return ISIDORO:GetAimDirection(player):Length() > 1e-3
+end
+
+-- when players are doing an attack animation, even if they arent holding the button
+---@param player EntityPlayer
+---@function
+function ISIDORO:IsAttacking(player)
+    local sprite = player:GetSprite()
+    return sprite:IsPlaying("GrabLoopRight") or sprite:IsPlaying("GrabLoopDown") or sprite:IsPlaying("GrabLoopLeft") or sprite:IsPlaying("GrabLoopUp")
+end
+
+---@param player EntityPlayer
+---@function
 function ISIDORO:ResetState(player)
     local isiData = ISIDORO:GetIsidoroState(player)
 
     player.ControlsEnabled = true
     isiData.TauntTime = 0
     isiData.Taunting = false
+    isiData.GrabTimeRemaining = 0
     player:ResetDamageCooldown()
+    player:StopExtraAnimation()
 end
 
 
@@ -55,7 +80,7 @@ Mod:AddCallback(ModCallbacks.MC_POST_PLAYER_INIT, ISIDORO.IsidoroInit)
 
 ---@param player EntityPlayer
 ---@function
-function ISIDORO:IsidoroUpdate(player)
+function ISIDORO:IsidoroRender(player)
     if player:GetPlayerType() ~= PLAYER_ISIDORO then return end
 
     local sprite = player:GetSprite()
@@ -63,7 +88,9 @@ function ISIDORO:IsidoroUpdate(player)
     local isiData = ISIDORO:GetIsidoroState(player)
 
 
-    if player:GetMovementVector():Length() == 0 and not sprite:IsPlaying("IdleNormal") and player:IsExtraAnimationFinished() then
+    if player:GetMovementVector():Length() == 0 and not sprite:IsPlaying("IdleNormal")
+    and player:IsExtraAnimationFinished() and not ISIDORO:IsAttacking(player) then
+
         ISIDORO:ResetState(player)
         player:PlayExtraAnimation("IdleNormal")
     elseif player:GetMovementVector():Length() > 0 and sprite:IsPlaying("IdleNormal") then
@@ -84,39 +111,21 @@ function ISIDORO:IsidoroUpdate(player)
     end
 
 end
-Mod:AddCallback(ModCallbacks.MC_POST_PLAYER_RENDER, ISIDORO.IsidoroUpdate, 0)
+Mod:AddCallback(ModCallbacks.MC_POST_PLAYER_RENDER, ISIDORO.IsidoroRender, 0)
 
-
------PARRY-----
 
 ---@param player EntityPlayer
 ---@function
-function ISIDORO:Taunt(player)
+function ISIDORO:IsidoroUpdate(player)
     if player:GetPlayerType() ~= PLAYER_ISIDORO then return end
 
     local sprite = player:GetSprite()
-    local rng = player:GetDropRNG()
     local data = player:GetData()
     local isiData = ISIDORO:GetIsidoroState(player)
 
     if sprite:WasEventTriggered("Interruptable") then
         if Input.IsActionTriggered(ButtonAction.ACTION_DROP, player.ControllerIndex) then --pre taunt
-            isiData.Taunting = true
-            isiData.TauntTime = 1
-
-            Mod.Scheduler.Schedule(3, function() --taunt
-                if not sprite:IsPlaying("Parry") then
-                    player:PlayExtraAnimation("TauntFX", true)
-                    SFXManager():Play(ENUMS.SFX.TAUNT)
-
-                    local overlay = Sprite() --this game SUCKS so overlay animations dont work with player sprites so i have to do this instead
-                    overlay:Load("gfx/characters/isidoro.anm2", true)
-                    overlay:SetFrame("Taunt", rng:RandomInt(16))
-                    player:GetData().isi_overlay = overlay
-
-                end
-            end)
-
+            ISIDORO:Taunt(player)
         end
     end
 
@@ -124,10 +133,54 @@ function ISIDORO:Taunt(player)
         player.ControlsEnabled = false
         isiData.TauntTime = isiData.TauntTime + 1
     end
-end
-Mod:AddCallback(ModCallbacks.MC_POST_PLAYER_UPDATE, ISIDORO.Taunt, 0)
 
----@param projectile EntityProjectile
+    if ISIDORO:IsShooting(player) and not player:HasEntityFlags(EntityFlag.FLAG_FEAR)
+    and not ISIDORO:IsAttacking(player) and isiData.GrabTimeRemaining == 0 then
+        ISIDORO:Grab(player)
+
+    elseif ISIDORO:IsAttacking(player) and isiData.GrabTimeRemaining > 0 then
+        player.Velocity = isiData.DashVelocity + (player:GetMovementVector() * 2)
+
+    elseif ISIDORO:IsAttacking(player) and isiData.GrabTimeRemaining == 0 then --let go of button before hitting something
+        player:StopExtraAnimation()
+    end
+
+    if isiData.GrabTimeRemaining > 0 then
+        isiData.GrabTimeRemaining = isiData.GrabTimeRemaining - 1
+    end
+end
+Mod:AddCallback(ModCallbacks.MC_POST_PLAYER_UPDATE, ISIDORO.IsidoroUpdate, 0)
+
+
+--todo use the input callback so hes technically moving
+
+-----PARRY-----
+
+---@param player EntityPlayer
+---@function
+function ISIDORO:Taunt(player)
+    local sprite = player:GetSprite()
+    local rng = player:GetDropRNG()
+    local isiData = ISIDORO:GetIsidoroState(player)
+
+    isiData.Taunting = true
+    isiData.TauntTime = 1
+
+    Mod.Scheduler.Schedule(3, function() --taunt
+        if not sprite:IsPlaying("Parry") then
+            player:PlayExtraAnimation("TauntFX")
+            SFXManager():Play(ENUMS.SFX.TAUNT)
+
+            local overlay = Sprite() --this game SUCKS so overlay animations dont work with player sprites so i have to do this instead
+            overlay:Load("gfx/characters/isidoro.anm2", true)
+            overlay:SetFrame("Taunt", rng:RandomInt(16))
+            player:GetData().isi_overlay = overlay
+
+        end
+    end)
+end
+
+---@param projectile Entity
 ---@param player EntityPlayer
 ---@function
 function ISIDORO:DeflectProjectile(player, projectile)
@@ -151,10 +204,12 @@ function ISIDORO:ParryProjectile(projectile, collider)
     if not collider:ToPlayer() then return end
 
     local player = collider:ToPlayer()
+    if player:GetPlayerType() ~= PLAYER_ISIDORO then return end
+
     local isiData = ISIDORO:GetIsidoroState(player)
 
     if ISIDORO:IsTaunting(player) and isiData.TauntTime <= PARRY_WINDOW then
-        player:PlayExtraAnimation("Parry", true)
+        player:PlayExtraAnimation("Parry")
         player:SetMinDamageCooldown(20)
         SFXManager():Play(ENUMS.SFX.PARRY, 1.4)
         SFXManager():Stop(ENUMS.SFX.TAUNT)
@@ -172,7 +227,7 @@ Mod:AddCallback(ModCallbacks.MC_PRE_PROJECTILE_COLLISION, ISIDORO.ParryProjectil
 
 -----GRAB-----
 
---the next 3 functions are from epiphany https://steamcommunity.com/sharedfiles/filedetails/?id=3012430463
+--the next 2 functions and a bit of the 3rd are from epiphany https://steamcommunity.com/sharedfiles/filedetails/?id=3012430463
 -- Custom implementation of GetAimDirection that doesn't reset between rooms.
 -- Also accounts for Marked.
 ---@param player EntityPlayer
@@ -212,7 +267,7 @@ function ISIDORO:GetAimDirection(player)
 	end
 
 	if aimVector:Length() > 1e-3 then
-		isiData.LastPunchDirection = aimVector
+		isiData.LastDashDirection = aimVector
 	end
 
 	return aimVector
@@ -233,31 +288,35 @@ function ISIDORO:GetAttackDirection(player)
 end
 
 
--- function from epiphany https://steamcommunity.com/sharedfiles/filedetails/?id=3012430463
 ---@param player EntityPlayer
----@param direction Vector?
----@param cooldown number? @Specifies a cooldown for the dash, fire delay
----@param dmg number? @Specifies the damage of the piledriver. If not specified, the player's damage will be used.
 ---@function
-function ISIDORO:Grab(player, direction, cooldown, dmg)
+function ISIDORO:Grab(player)
 	local isiData = ISIDORO:GetIsidoroState(player)
 
 	-- multiply by 2 since player update runs 60 times a second while firerate works with 30 in mind
-	cooldown = cooldown or (math.ceil(player.MaxFireDelay) * 2)
+	-- cooldown = cooldown or (math.ceil(player.MaxFireDelay) * 2)
 
-	local aimDirection = direction or ISIDORO:GetAttackDirection(player)
+	local aimDirection = ISIDORO:GetAttackDirection(player)
+    local aimAngle = aimDirection:GetAngleDegrees()
+    local vector = FUNCTIONS:VectorMin(FUNCTIONS:VectorMax(aimDirection * 8, aimDirection * player.TearRange / 40), aimDirection * 10) --speed scales with range
 
+    player.Velocity = vector
+
+    isiData.DashVelocity = vector
+    isiData.GrabTimeRemaining = GRAB_MINIMUM + math.min(GRAB_MAXIMUM, FUNCTIONS.Round(vector:Length()))
+
+    if aimAngle >= -45 and aimAngle <= 45 then --right
+        player:PlayExtraAnimation("GrabStartRight")
+        player:QueueExtraAnimation("GrabLoopRight")
+    elseif aimAngle >= 45 and aimAngle <= 135 then --down
+        player:PlayExtraAnimation("GrabStartDown")
+        player:QueueExtraAnimation("GrabLoopDown")
+    elseif aimAngle >= -135 and aimAngle <= -45 then --up
+        player:PlayExtraAnimation("GrabStartUp")
+        player:QueueExtraAnimation("GrabLoopUp")
+    else --left
+        player:PlayExtraAnimation("GrabStartLeft")
+        player:QueueExtraAnimation("GrabLoopLeft")
+    end
 
 end
-
-
--- 		local angle = SAMSON:GetAimDirection(player):GetAngleDegrees()
--- 		angle = ((angle + 45) // 90) * 90
-
--- 		if angle == 0 then -- right
--- 			pos = pos + Vector(-offset.X, offset.Y)
--- 		elseif math.abs(angle) == 180 then -- left
--- 			pos = pos + Vector(offset.X, offset.Y)
--- 		else
--- 			pos = pos + Vector(0, offset.Y)
--- 		end
