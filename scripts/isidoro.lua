@@ -134,15 +134,22 @@ function ISIDORO:IsidoroUpdate(player)
         isiData.TauntTime = isiData.TauntTime + 1
     end
 
-    if ISIDORO:IsShooting(player) and not player:HasEntityFlags(EntityFlag.FLAG_FEAR)
-    and not ISIDORO:IsAttacking(player) and isiData.GrabTimeRemaining == 0 then
+    if ISIDORO:IsShooting(player) and not player:HasEntityFlags(EntityFlag.FLAG_FEAR) --dash grab
+    and not ISIDORO:IsAttacking(player) and isiData.GrabTimeRemaining == 0 and player.FireDelay <= 0 then
         ISIDORO:Grab(player)
 
-    elseif ISIDORO:IsAttacking(player) and isiData.GrabTimeRemaining > 0 then
+    elseif ISIDORO:IsAttacking(player) and isiData.GrabTimeRemaining > 0 then --keeping the dashing at a consistant speed
         player.Velocity = isiData.DashVelocity + (player:GetMovementVector() * 2)
 
     elseif ISIDORO:IsAttacking(player) and isiData.GrabTimeRemaining == 0 then --let go of button before hitting something
         player:StopExtraAnimation()
+        ISIDORO:ResetState(player)
+        player.FireDelay = player.MaxFireDelay
+    end
+
+    if ISIDORO:IsAttacking(player) and player:CollidesWithGrid() then
+        player:StopExtraAnimation()
+        ISIDORO:ResetState(player)
     end
 
     if isiData.GrabTimeRemaining > 0 then
@@ -152,7 +159,8 @@ end
 Mod:AddCallback(ModCallbacks.MC_POST_PLAYER_UPDATE, ISIDORO.IsidoroUpdate, 0)
 
 
---todo use the input callback so hes technically moving
+--todo use the input callback so hes technically moving in the direction while dashing
+--todo use the the damage countdown argument in a take damage function to make a buffer
 
 -----PARRY-----
 
@@ -204,13 +212,13 @@ function ISIDORO:ParryProjectile(projectile, collider)
     if not collider:ToPlayer() then return end
 
     local player = collider:ToPlayer()
+
     if player:GetPlayerType() ~= PLAYER_ISIDORO then return end
 
     local isiData = ISIDORO:GetIsidoroState(player)
 
     if ISIDORO:IsTaunting(player) and isiData.TauntTime <= PARRY_WINDOW then
         player:PlayExtraAnimation("Parry")
-        player:SetMinDamageCooldown(20)
         SFXManager():Play(ENUMS.SFX.PARRY, 1.4)
         SFXManager():Stop(ENUMS.SFX.TAUNT)
 
@@ -287,7 +295,6 @@ function ISIDORO:GetAttackDirection(player)
 	return Vector.FromAngle(angle)
 end
 
-
 ---@param player EntityPlayer
 ---@function
 function ISIDORO:Grab(player)
@@ -317,6 +324,58 @@ function ISIDORO:Grab(player)
     else --left
         player:PlayExtraAnimation("GrabStartLeft")
         player:QueueExtraAnimation("GrabLoopLeft")
+    end
+
+end
+
+---@param player EntityPlayer
+---@param collider Entity
+---@function
+function ISIDORO:GrabCollision(player, collider)
+    if not collider:ToNPC() then return end
+    if player:GetPlayerType() ~= PLAYER_ISIDORO then return end
+
+    local npc = collider:ToNPC()
+
+    local isiData = ISIDORO:GetIsidoroState(player)
+    if ISIDORO:IsAttacking(player) and isiData.GrabTimeRemaining > 0 then
+        --todo piledriver (gross)
+
+        ISIDORO:Punch(player, npc)
+
+        return true
+    end
+end
+Mod:AddCallback(ModCallbacks.MC_PRE_PLAYER_COLLISION, ISIDORO.GrabCollision)
+
+---@param player EntityPlayer
+---@param npc EntityNPC
+---@function
+function ISIDORO:Punch(player, npc)
+    local isiData = ISIDORO:GetIsidoroState(player)
+
+    local aimAngle = player.Velocity:GetAngleDegrees()
+
+    if aimAngle >= -45 and aimAngle <= 45 then --right
+        player:PlayExtraAnimation("BossPunchRight")
+    elseif aimAngle >= 45 and aimAngle <= 135 then --down
+        player:PlayExtraAnimation("BossPunchDown")
+    elseif aimAngle >= -135 and aimAngle <= -45 then --up
+        player:PlayExtraAnimation("BossPunchUp")
+    else --left
+        player:PlayExtraAnimation("BossPunchLeft")
+    end
+
+    player:SetMinDamageCooldown(120) --todo fix invincibility, its not consistant idfk
+    player.Velocity = -player.Velocity:Resized(10)
+    player.FireDelay = player.MaxFireDelay
+
+    npc:TakeDamage(player.Damage * 4, 0, EntityRef(player), 0)
+
+    -- enemies with mass 100 are stationary
+    if npc.Mass < 100 then
+        npc:AddVelocity(isiData.DashVelocity * 1.5 * (100 - npc.Mass) * .04)
+        npc:AddEntityFlags(EntityFlag.FLAG_KNOCKED_BACK | EntityFlag.FLAG_APPLY_IMPACT_DAMAGE)
     end
 
 end
