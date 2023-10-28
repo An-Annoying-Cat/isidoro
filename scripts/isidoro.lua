@@ -61,7 +61,6 @@ function ISIDORO:ResetState(player)
     isiData.TauntTime = 0
     isiData.Taunting = false
     isiData.GrabTimeRemaining = 0
-    player:ResetDamageCooldown()
     player:StopExtraAnimation()
 end
 
@@ -87,8 +86,12 @@ function ISIDORO:IsidoroRender(player)
     local data = player:GetData()
     local isiData = ISIDORO:GetIsidoroState(player)
 
+    if player:GetDamageCooldown() % 5 == 2 then
+        player:SetColor(Color(0, 0, 0, 0), 2, 200, false, false)
+    end
 
-    if player:GetMovementVector():Length() == 0 and not sprite:IsPlaying("IdleNormal")
+
+    if player:GetMovementVector():Length() == 0 and (not sprite:IsPlaying("IdleNormal") or not sprite:IsFinished("IdleNormal"))
     and player:IsExtraAnimationFinished() and not ISIDORO:IsAttacking(player) then
 
         ISIDORO:ResetState(player)
@@ -366,7 +369,8 @@ function ISIDORO:Punch(player, npc)
         player:PlayExtraAnimation("BossPunchLeft")
     end
 
-    player:SetMinDamageCooldown(120) --todo fix invincibility, its not consistant idfk
+    player:ResetDamageCooldown()
+    player:SetMinDamageCooldown(20)
     player.Velocity = -player.Velocity:Resized(10)
     player.FireDelay = player.MaxFireDelay
 
