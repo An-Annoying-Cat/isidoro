@@ -5,4 +5,16 @@
 	<sound name="Isidoro Parry">
 		<sample weight="1" path="isidoro_parry.wav"/>
 	</sound>
+	<sound name="Isidoro Grab Dash">
+		<sample weight="1" path="isidoro_grabdash.wav"/>
+	</sound>
+	<sound name="Isidoro Punch">
+		<sample weight="1" path="isidoro_punch.wav"/>
+	</sound>
+	<sound name="Isidoro Piledriver Start">
+		<sample weight="1" path="isidoro_piledriver_start.wav"/>
+	</sound>
+	<sound name="Isidoro Piledriver Slam">
+		<sample weight="1" path="isidoro_piledriver_slam.wav"/>
+	</sound>
 </sounds>

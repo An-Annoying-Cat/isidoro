@@ -353,6 +353,8 @@ function ISIDORO:Grab(player)
         player:QueueExtraAnimation("GrabLoopLeft")
     end
 
+    SFXManager():Play(ENUMS.SFX.GRABDASH, .8)
+
 end
 
 ---@param player EntityPlayer
@@ -367,12 +369,14 @@ function ISIDORO:GrabCollision(player, collider)
     local isiData = ISIDORO:GetIsidoroState(player)
 
     if ISIDORO:IsPiledriving(player) then
-        return true
+        return false
     end
     if ISIDORO:IsAttacking(player) and isiData.GrabTimeRemaining > 0 then
-        ISIDORO:Piledriver(player, npc)
-
-        -- ISIDORO:Punch(player, npc)
+        if npc:IsBoss() or npc.Mass == 100 or npc:IsInvincible() or not npc:IsVulnerableEnemy() then  -- enemies with mass 100 are stationary
+            ISIDORO:Punch(player, npc)
+        else
+            ISIDORO:Piledriver(player, npc)
+        end
 
         return true
     end
@@ -403,9 +407,10 @@ function ISIDORO:Punch(player, npc)
     player.FireDelay = player.MaxFireDelay
 
     npc:TakeDamage(player.Damage * 4, 0, EntityRef(player), 0)
+    SFXManager():Play(ENUMS.SFX.PUNCH, 1.6)
 
     -- enemies with mass 100 are stationary
-    if npc.Mass < 100 then
+    if npc.Mass < 100 and not npc:IsInvincible() then
         npc:AddVelocity(isiData.DashVelocity * 1.5 * (100 - npc.Mass) * .04)
         npc:AddEntityFlags(EntityFlag.FLAG_KNOCKED_BACK | EntityFlag.FLAG_APPLY_IMPACT_DAMAGE)
     end
@@ -422,6 +427,8 @@ function ISIDORO:Piledriver(player, npc)
     local sprite = player:GetSprite()
 
     sprite:Play("PiledriverLeap")
+    SFXManager():Stop(ENUMS.SFX.GRABDASH)
+    SFXManager():Play(ENUMS.SFX.PILEDRIVER_START, 2.7)
     isiData.PiledriveTime = 1
 
     npc:GetData().isi_piledriver = FUNCTIONS:GetPlayerNumber(player)
@@ -433,7 +440,8 @@ function ISIDORO:Piledriver(player, npc)
     npc.EntityCollisionClass = EntityCollisionClass.ENTCOLL_NONE
 
     player:ResetDamageCooldown()
-    player:SetMinDamageCooldown(1)
+    player:SetMinDamageCooldown(4)
+    player.CollisionDamage = 4
 
     npc:AddEntityFlags(EntityFlag.FLAG_NO_SPRITE_UPDATE)
 
@@ -457,7 +465,7 @@ function ISIDORO:PiledriveReciever(npc)
     if data.isi_piledriver then
         local player = Game():GetPlayer(data.isi_piledriver)
 
-        if GetPtrHash(player) == GetPtrHash(data.isi_piledriverHash) then
+        if GetPtrHash(player) == GetPtrHash(data.isi_piledriverHash) then --todo move this to the player render callback
             local isiData = ISIDORO:GetIsidoroState(player)
             local x = isiData.PiledriveTime
             local frame = player:GetSprite():GetFrame()
@@ -480,6 +488,7 @@ function ISIDORO:PiledriveReciever(npc)
                 player.DepthOffset = 0
 
                 player:PlayExtraAnimation("PiledriverLand")
+                SFXManager():Play(ENUMS.SFX.PILEDRIVER_SLAM, 1.8)
 
                 npc:TakeDamage(player.Damage * 4, 0, EntityRef(player), 0)
                 npc:AddVelocity(player:GetMovementVector():Resized(20))
