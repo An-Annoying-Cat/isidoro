@@ -24,7 +24,10 @@ function ISIDORO:GetIsidoroState(player)
             LastDashDirection = Vector.Zero,
             DashVelocity = Vector.Zero,
             GrabTimeRemaining = 0,
-            StoredVelocity = Vector.Zero
+            StoredVelocity = Vector.Zero,
+            PiledriveTime = 0,
+            PiledrivenEnemyHash = nil,
+            PiledrivenEnemyCollisionClass = nil
 		}
 	end
 	return player:GetData().isi_data
@@ -54,6 +57,13 @@ end
 
 ---@param player EntityPlayer
 ---@function
+function ISIDORO:IsPiledriving(player)
+    local sprite = player:GetSprite()
+    return sprite:IsPlaying("PiledriverLeap") or sprite:IsPlaying("PiledriverLand")
+end
+
+---@param player EntityPlayer
+---@function
 function ISIDORO:ResetState(player)
     local isiData = ISIDORO:GetIsidoroState(player)
 
@@ -62,6 +72,7 @@ function ISIDORO:ResetState(player)
     isiData.Taunting = false
     isiData.GrabTimeRemaining = 0
     player:StopExtraAnimation()
+    player.EntityCollisionClass = EntityCollisionClass.ENTCOLL_ALL
 end
 
 
@@ -92,7 +103,7 @@ function ISIDORO:IsidoroRender(player)
 
 
     if player:GetMovementVector():Length() == 0 and (not sprite:IsPlaying("IdleNormal") or not sprite:IsFinished("IdleNormal"))
-    and player:IsExtraAnimationFinished() and not ISIDORO:IsAttacking(player) then
+    and player:IsExtraAnimationFinished() and not ISIDORO:IsAttacking(player) and not ISIDORO:IsPiledriving(player) then
 
         ISIDORO:ResetState(player)
         player:PlayExtraAnimation("IdleNormal")
@@ -137,8 +148,11 @@ function ISIDORO:IsidoroUpdate(player)
         isiData.TauntTime = isiData.TauntTime + 1
     end
 
+
+
     if ISIDORO:IsShooting(player) and not player:HasEntityFlags(EntityFlag.FLAG_FEAR) --dash grab
-    and not ISIDORO:IsAttacking(player) and isiData.GrabTimeRemaining == 0 and player.FireDelay <= 0 then
+    and not ISIDORO:IsAttacking(player) and isiData.GrabTimeRemaining == 0 and player.FireDelay <= 0
+    and not ISIDORO:IsPiledriving(player) then
         ISIDORO:Grab(player)
 
     elseif ISIDORO:IsAttacking(player) and isiData.GrabTimeRemaining > 0 then --keeping the dashing at a consistant speed
@@ -158,6 +172,16 @@ function ISIDORO:IsidoroUpdate(player)
     if isiData.GrabTimeRemaining > 0 then
         isiData.GrabTimeRemaining = isiData.GrabTimeRemaining - 1
     end
+
+
+    if isiData.PiledriveTime > 0 then
+        isiData.PiledriveTime = isiData.PiledriveTime + 1
+    end
+
+    -- if ISIDORO:IsPiledriving(player) then
+    --     player.EntityCollisionClass = EntityCollisionClass.ENTCOLL_NONE
+    -- end
+
 end
 Mod:AddCallback(ModCallbacks.MC_POST_PLAYER_UPDATE, ISIDORO.IsidoroUpdate, 0)
 
@@ -341,10 +365,14 @@ function ISIDORO:GrabCollision(player, collider)
     local npc = collider:ToNPC()
 
     local isiData = ISIDORO:GetIsidoroState(player)
-    if ISIDORO:IsAttacking(player) and isiData.GrabTimeRemaining > 0 then
-        --todo piledriver (gross)
 
-        ISIDORO:Punch(player, npc)
+    if ISIDORO:IsPiledriving(player) then
+        return true
+    end
+    if ISIDORO:IsAttacking(player) and isiData.GrabTimeRemaining > 0 then
+        ISIDORO:Piledriver(player, npc)
+
+        -- ISIDORO:Punch(player, npc)
 
         return true
     end
@@ -383,3 +411,94 @@ function ISIDORO:Punch(player, npc)
     end
 
 end
+
+
+
+---@param player EntityPlayer
+---@param npc EntityNPC
+---@function
+function ISIDORO:Piledriver(player, npc)
+    local isiData = ISIDORO:GetIsidoroState(player)
+    local sprite = player:GetSprite()
+
+    sprite:Play("PiledriverLeap")
+    isiData.PiledriveTime = 1
+
+    npc:GetData().isi_piledriver = FUNCTIONS:GetPlayerNumber(player)
+    npc:GetData().isi_piledriverHash = player
+    isiData.PiledrivenEnemyHash = npc
+
+    isiData.PiledrivenEnemyCollisionClass = npc.EntityCollisionClass
+    player.EntityCollisionClass = EntityCollisionClass.ENTCOLL_NONE
+    npc.EntityCollisionClass = EntityCollisionClass.ENTCOLL_NONE
+
+    player:ResetDamageCooldown()
+    player:SetMinDamageCooldown(1)
+
+    npc:AddEntityFlags(EntityFlag.FLAG_NO_SPRITE_UPDATE)
+
+    return true
+
+end
+
+local piledriver_null_layer_position = {
+    [0] = 15,
+    [1] = 8,
+    [2] = 0,
+    [3] = -8,
+    [4] = -15,
+    [5] = -8,
+    [6] = 0,
+    [7] = 8,
+}
+
+function ISIDORO:PiledriveReciever(npc)
+    local data = npc:GetData()
+    if data.isi_piledriver then
+        local player = Game():GetPlayer(data.isi_piledriver)
+
+        if GetPtrHash(player) == GetPtrHash(data.isi_piledriverHash) then
+            local isiData = ISIDORO:GetIsidoroState(player)
+            local x = isiData.PiledriveTime
+            local frame = player:GetSprite():GetFrame()
+            npc.Position = player.Position
+
+            npc.SpriteOffset = Vector(piledriver_null_layer_position[frame] or 0, (x/5) * (x - (player.ShotSpeed * 40)))
+            player.SpriteOffset = Vector(0, (x/5) * (x - (player.ShotSpeed * 40)))
+
+            if frame == 1 or frame == 2 or frame == 3 then
+                player.DepthOffset = npc.DepthOffset - 20
+            else
+                player.DepthOffset = npc.DepthOffset + 20
+            end
+
+            if player.SpriteOffset.Y > 0 then
+                data.isi_piledriver = nil
+
+                player.SpriteOffset = Vector.Zero
+                npc.SpriteOffset = Vector.Zero
+                player.DepthOffset = 0
+
+                player:PlayExtraAnimation("PiledriverLand")
+
+                npc:TakeDamage(player.Damage * 4, 0, EntityRef(player), 0)
+                npc:AddVelocity(player:GetMovementVector():Resized(20))
+                npc:AddEntityFlags(EntityFlag.FLAG_KNOCKED_BACK | EntityFlag.FLAG_APPLY_IMPACT_DAMAGE)
+                npc:ClearEntityFlags(EntityFlag.FLAG_NO_SPRITE_UPDATE)
+
+                player:ResetDamageCooldown()
+                player:SetMinDamageCooldown(30)
+
+                npc.EntityCollisionClass = isiData.PiledrivenEnemyCollisionClass
+                player.EntityCollisionClass = EntityCollisionClass.ENTCOLL_ALL
+
+                isiData.PiledrivenEnemyHash = nil
+                isiData.PiledrivenEnemyCollisionClass = nil
+                isiData.PiledriveTime = 0
+            end
+
+            return true
+        end
+    end
+end
+Mod:AddCallback(ModCallbacks.MC_PRE_NPC_UPDATE, ISIDORO.PiledriveReciever)

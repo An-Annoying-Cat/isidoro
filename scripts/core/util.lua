@@ -10,6 +10,18 @@ function FUNCTIONS:GetPlayerString(player)
 	return "PLAYER_" .. player:GetCollectibleRNG(1):GetSeed() .. "_" .. player:GetCollectibleRNG(2):GetSeed()
 end
 
+---@function
+---@returns int!
+function FUNCTIONS:GetPlayerNumber(player)
+	local num_players = Game():GetNumPlayers()
+	for i = 0, (num_players - 1) do
+		if GetPtrHash(Game():GetPlayer(i)) == GetPtrHash(player) then
+			return i
+		end
+	end
+	return -1
+end
+
 --math.max but for vectors
 ---@param vec1 Vector
 ---@param vec2 Vector
