@@ -14,6 +14,10 @@ local PARRY_WINDOW = ISIDORO.PARRY_WINDOW
 local GRAB_MINIMUM = ISIDORO.GRAB_MINIMUM
 local GRAB_MAXIMUM = ISIDORO.GRAB_MAXIMUM
 
+--todo parry window is 8 frames in pt
+--todo fix piledriver
+--todo finish repentogon transfer
+
 ---@param player EntityPlayer
 ---@function
 function ISIDORO:GetIsidoroState(player)
